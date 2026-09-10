@@ -24,7 +24,7 @@ create table public.meter_readings (
   meter_id uuid not null references public.meters (id) on delete cascade,
   value numeric not null,
   recorded_at timestamptz not null default now(),
-  recorded_by uuid references auth.users (id),
+  recorded_by uuid references public.profiles (id),
   source text not null default 'manual' check (source in ('manual', 'api', 'sensor')),
   note text,
   created_at timestamptz not null default now()

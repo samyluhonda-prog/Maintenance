@@ -39,10 +39,10 @@ create table public.equipment (
   expected_lifetime_months integer,
   warranty_expires_at date,
   supplier_id uuid,
-  owner_user_id uuid references auth.users (id),
+  owner_user_id uuid references public.profiles (id),
   cumulative_cost numeric(14, 2) not null default 0,
   cumulative_downtime_minutes bigint not null default 0,
-  created_by uuid references auth.users (id),
+  created_by uuid references public.profiles (id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
@@ -63,7 +63,7 @@ create table public.equipment_documents (
   file_name text not null,
   mime_type text,
   size_bytes bigint,
-  uploaded_by uuid references auth.users (id),
+  uploaded_by uuid references public.profiles (id),
   created_at timestamptz not null default now()
 );
 create index equipment_documents_equipment_idx on public.equipment_documents (equipment_id);
@@ -74,7 +74,7 @@ create table public.equipment_moves (
   equipment_id uuid not null references public.equipment (id) on delete cascade,
   from_location_id uuid references public.locations (id),
   to_location_id uuid references public.locations (id),
-  moved_by uuid references auth.users (id),
+  moved_by uuid references public.profiles (id),
   moved_at timestamptz not null default now(),
   note text
 );

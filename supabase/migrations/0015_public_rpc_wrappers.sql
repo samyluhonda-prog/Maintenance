@@ -10,6 +10,18 @@
 -- and exposing only these thin, purpose-built wrappers in `public` keeps the
 -- surface small and avoids that dependency entirely.
 
+-- Used wherever client code needs a human-friendly sequential number
+-- (work orders, purchase orders, requests, ...) at creation time.
+create or replace function public.next_number(p_org_id uuid, p_key text, p_prefix text)
+returns text
+language sql
+security invoker
+set search_path = public, app
+as $$
+  select app.next_number(p_org_id, p_key, p_prefix);
+$$;
+grant execute on function public.next_number(uuid, text, text) to authenticated;
+
 create or replace function public.create_organization_with_owner(
   p_name text, p_slug text, p_locale text default 'fr', p_timezone text default 'America/Toronto'
 )

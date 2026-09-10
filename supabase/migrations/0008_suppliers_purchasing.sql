@@ -43,8 +43,8 @@ create table public.purchase_orders (
   supplier_id uuid references public.suppliers (id),
   status text not null default 'draft' check (status in
     ('draft', 'requested', 'pending_approval', 'approved', 'ordered', 'partially_received', 'received', 'closed', 'cancelled')),
-  requested_by uuid references auth.users (id),
-  approved_by uuid references auth.users (id),
+  requested_by uuid references public.profiles (id),
+  approved_by uuid references public.profiles (id),
   approved_at timestamptz,
   ordered_at timestamptz,
   expected_at date,

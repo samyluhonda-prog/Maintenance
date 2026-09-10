@@ -11,10 +11,10 @@ create table public.pm_plans (
   wo_description text,
   wo_priority text not null default 'medium' check (wo_priority in ('low', 'medium', 'high', 'critical')),
   wo_estimate_hours numeric(8, 2),
-  default_assignee_id uuid references auth.users (id),
+  default_assignee_id uuid references public.profiles (id),
   lead_time_days integer not null default 0,
   status text not null default 'active' check (status in ('active', 'paused', 'archived')),
-  created_by uuid references auth.users (id),
+  created_by uuid references public.profiles (id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

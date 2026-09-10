@@ -18,7 +18,7 @@ create table public.automation_rules (
   )),
   conditions jsonb not null default '{}'::jsonb,
   actions jsonb not null default '[]'::jsonb,
-  created_by uuid references auth.users (id),
+  created_by uuid references public.profiles (id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

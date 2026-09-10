@@ -80,7 +80,7 @@ create table public.role_permissions (
 create table public.memberships (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.organizations (id) on delete cascade,
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
   role_id uuid not null references public.roles (id),
   status text not null default 'active' check (status in ('active', 'invited', 'suspended')),
   invited_email text,
@@ -99,7 +99,7 @@ create table public.org_invitations (
   org_id uuid not null references public.organizations (id) on delete cascade,
   email text not null,
   role_id uuid not null references public.roles (id),
-  invited_by uuid not null references auth.users (id),
+  invited_by uuid not null references public.profiles (id),
   token uuid not null default gen_random_uuid(),
   status text not null default 'pending' check (status in ('pending', 'accepted', 'revoked', 'expired')),
   created_at timestamptz not null default now(),

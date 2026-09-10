@@ -3,7 +3,7 @@
 create table public.notifications (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.organizations (id) on delete cascade,
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
   type text not null,
   title text not null,
   body text,
@@ -14,7 +14,7 @@ create table public.notifications (
 create index notifications_user_idx on public.notifications (user_id, is_read, created_at desc);
 
 create table public.notification_preferences (
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
   org_id uuid not null references public.organizations (id) on delete cascade,
   channel text not null check (channel in ('inapp', 'email', 'push')),
   category text not null,
@@ -27,7 +27,7 @@ create table public.notification_preferences (
 create table public.audit_log (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.organizations (id) on delete cascade,
-  actor_id uuid references auth.users (id),
+  actor_id uuid references public.profiles (id),
   action text not null,
   entity_type text not null,
   entity_id uuid,
@@ -60,7 +60,7 @@ create table public.rca_records (
   problem_statement text not null,
   failure_mode_id uuid references public.failure_modes (id),
   status text not null default 'open' check (status in ('open', 'in_progress', 'completed')),
-  created_by uuid references auth.users (id),
+  created_by uuid references public.profiles (id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -93,10 +93,10 @@ create table public.corrective_actions (
   org_id uuid not null references public.organizations (id) on delete cascade,
   rca_id uuid not null references public.rca_records (id) on delete cascade,
   description text not null,
-  owner_id uuid references auth.users (id),
+  owner_id uuid references public.profiles (id),
   due_date date,
   status text not null default 'open' check (status in ('open', 'in_progress', 'done', 'verified')),
-  verified_by uuid references auth.users (id),
+  verified_by uuid references public.profiles (id),
   verified_at timestamptz,
   effectiveness_note text,
   created_at timestamptz not null default now()
@@ -110,7 +110,7 @@ create table public.comments (
   org_id uuid not null references public.organizations (id) on delete cascade,
   entity_type text not null,
   entity_id uuid not null,
-  user_id uuid not null references auth.users (id),
+  user_id uuid not null references public.profiles (id),
   body text not null,
   mentioned_user_ids uuid[] not null default '{}',
   created_at timestamptz not null default now()
@@ -126,7 +126,7 @@ create table public.attachments (
   file_name text not null,
   mime_type text,
   size_bytes bigint,
-  uploaded_by uuid references auth.users (id),
+  uploaded_by uuid references public.profiles (id),
   created_at timestamptz not null default now()
 );
 create index attachments_entity_idx on public.attachments (org_id, entity_type, entity_id);

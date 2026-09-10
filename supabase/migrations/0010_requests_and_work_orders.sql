@@ -13,8 +13,8 @@ create table public.requests (
   is_equipment_down boolean not null default false,
   status text not null default 'draft' check (status in
     ('draft', 'submitted', 'under_review', 'approved', 'rejected', 'converted')),
-  requested_by uuid not null references auth.users (id),
-  reviewed_by uuid references auth.users (id),
+  requested_by uuid not null references public.profiles (id),
+  reviewed_by uuid references public.profiles (id),
   reviewed_at timestamptz,
   review_note text,
   converted_work_order_id uuid,
@@ -34,7 +34,7 @@ create table public.request_attachments (
   storage_path text not null,
   file_name text not null,
   mime_type text,
-  uploaded_by uuid references auth.users (id),
+  uploaded_by uuid references public.profiles (id),
   created_at timestamptz not null default now()
 );
 create index request_attachments_request_idx on public.request_attachments (request_id);
@@ -57,9 +57,9 @@ create table public.work_orders (
   pm_plan_id uuid,
   procedure_template_id uuid references public.procedure_templates (id),
   procedure_run_id uuid references public.procedure_runs (id),
-  primary_assignee_id uuid references auth.users (id),
+  primary_assignee_id uuid references public.profiles (id),
   team_id uuid,
-  created_by uuid references auth.users (id),
+  created_by uuid references public.profiles (id),
   scheduled_start timestamptz,
   due_at timestamptz,
   estimate_hours numeric(8, 2),
@@ -75,7 +75,7 @@ create table public.work_orders (
   follow_up_required boolean not null default false,
   follow_up_notes text,
   closed_at timestamptz,
-  closed_by uuid references auth.users (id),
+  closed_by uuid references public.profiles (id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz,
@@ -102,14 +102,14 @@ alter table public.work_orders add constraint work_orders_team_fk foreign key (t
 
 create table public.team_members (
   team_id uuid not null references public.teams (id) on delete cascade,
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
   org_id uuid not null references public.organizations (id) on delete cascade,
   primary key (team_id, user_id)
 );
 
 create table public.work_order_assignees (
   work_order_id uuid not null references public.work_orders (id) on delete cascade,
-  user_id uuid not null references auth.users (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
   org_id uuid not null references public.organizations (id) on delete cascade,
   role_on_wo text default 'technician',
   primary key (work_order_id, user_id)
@@ -143,7 +143,7 @@ create table public.work_order_time_logs (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.organizations (id) on delete cascade,
   work_order_id uuid not null references public.work_orders (id) on delete cascade,
-  user_id uuid not null references auth.users (id),
+  user_id uuid not null references public.profiles (id),
   started_at timestamptz not null,
   ended_at timestamptz,
   minutes integer,
@@ -157,7 +157,7 @@ create table public.work_order_comments (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.organizations (id) on delete cascade,
   work_order_id uuid not null references public.work_orders (id) on delete cascade,
-  user_id uuid not null references auth.users (id),
+  user_id uuid not null references public.profiles (id),
   body text not null,
   mentioned_user_ids uuid[] not null default '{}',
   created_at timestamptz not null default now()
@@ -171,7 +171,7 @@ create table public.work_order_attachments (
   storage_path text not null,
   file_name text not null,
   mime_type text,
-  uploaded_by uuid references auth.users (id),
+  uploaded_by uuid references public.profiles (id),
   created_at timestamptz not null default now()
 );
 create index work_order_attachments_wo_idx on public.work_order_attachments (work_order_id);
@@ -180,7 +180,7 @@ create table public.work_order_signatures (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.organizations (id) on delete cascade,
   work_order_id uuid not null references public.work_orders (id) on delete cascade,
-  user_id uuid not null references auth.users (id),
+  user_id uuid not null references public.profiles (id),
   signed_at timestamptz not null default now(),
   signature_path text not null
 );
@@ -191,7 +191,7 @@ create table public.work_order_status_history (
   work_order_id uuid not null references public.work_orders (id) on delete cascade,
   from_status text,
   to_status text not null,
-  changed_by uuid references auth.users (id),
+  changed_by uuid references public.profiles (id),
   changed_at timestamptz not null default now(),
   note text
 );

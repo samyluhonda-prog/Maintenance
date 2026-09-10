@@ -53,7 +53,7 @@ create table public.part_transactions (
   purchase_order_id uuid,
   from_location_id uuid references public.locations (id),
   to_location_id uuid references public.locations (id),
-  performed_by uuid references auth.users (id),
+  performed_by uuid references public.profiles (id),
   note text,
   created_at timestamptz not null default now()
 );

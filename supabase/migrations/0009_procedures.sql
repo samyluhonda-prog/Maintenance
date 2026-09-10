@@ -9,7 +9,7 @@ create table public.procedure_templates (
   category text,
   version integer not null default 1,
   is_active boolean not null default true,
-  created_by uuid references auth.users (id),
+  created_by uuid references public.profiles (id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz
@@ -48,7 +48,7 @@ create table public.procedure_runs (
   work_order_id uuid,
   equipment_id uuid references public.equipment (id),
   status text not null default 'in_progress' check (status in ('in_progress', 'completed', 'failed')),
-  started_by uuid references auth.users (id),
+  started_by uuid references public.profiles (id),
   started_at timestamptz not null default now(),
   completed_at timestamptz,
   score numeric,
