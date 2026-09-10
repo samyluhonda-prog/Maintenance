@@ -9,7 +9,9 @@ import { requireOrgAccess } from "@/lib/data/orgs";
 import { generateQrSvg } from "@/lib/qr";
 import { createClient } from "@/lib/supabase/server";
 
+import { AiInsightsCard } from "./ai-insights-card";
 import { DocumentsPanel } from "./documents-panel";
+import { MetersPanel } from "./meters-panel";
 import { QrCard } from "./qr-card";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -40,7 +42,7 @@ export default async function EquipmentDetailPage({ params }: PageProps<"/o/[org
   const ctx = await requireOrgAccess(orgSlug);
   const supabase = await createClient();
 
-  const [{ data: equipment }, { data: documents }] = await Promise.all([
+  const [{ data: equipment }, { data: documents }, { data: meters }] = await Promise.all([
     supabase
       .from("equipment")
       .select("*, locations(name), suppliers(name)")
@@ -48,9 +50,25 @@ export default async function EquipmentDetailPage({ params }: PageProps<"/o/[org
       .eq("org_id", ctx.org.id)
       .maybeSingle(),
     supabase.from("equipment_documents").select("*").eq("equipment_id", id).order("created_at", { ascending: false }),
+    supabase.from("meters").select("id, name, unit").eq("equipment_id", id).order("name"),
   ]);
 
   if (!equipment) notFound();
+
+  const meterIds = (meters ?? []).map((m) => m.id);
+  const { data: meterReadings } =
+    meterIds.length > 0
+      ? await supabase
+          .from("meter_readings")
+          .select("meter_id, value, recorded_at")
+          .in("meter_id", meterIds)
+          .order("recorded_at", { ascending: false })
+      : { data: [] as { meter_id: string; value: number; recorded_at: string }[] };
+  const latestByMeter = new Map<string, { value: number; recorded_at: string }>();
+  for (const r of meterReadings ?? []) {
+    if (!latestByMeter.has(r.meter_id)) latestByMeter.set(r.meter_id, r);
+  }
+  const meterRows = (meters ?? []).map((m) => ({ ...m, latest: latestByMeter.get(m.id) ?? null }));
 
   const qrSvg = equipment.qr_code ? await generateQrSvg(equipment.qr_code) : null;
   const canEdit = ctx.roleKey === "owner" || ctx.roleKey === "admin" || ctx.permissions.has("equipment.edit");
@@ -119,10 +137,15 @@ export default async function EquipmentDetailPage({ params }: PageProps<"/o/[org
             </CardContent>
           </Card>
 
+          <MetersPanel orgSlug={orgSlug} orgId={ctx.org.id} equipmentId={equipment.id} meters={meterRows} />
+
           <DocumentsPanel orgSlug={orgSlug} orgId={ctx.org.id} equipmentId={equipment.id} documents={documents ?? []} />
         </div>
 
-        <div className="grid gap-6">{qrSvg && <QrCard svg={qrSvg} code={equipment.qr_code!} name={equipment.name} internalCode={equipment.internal_code} />}</div>
+        <div className="grid gap-6">
+          {qrSvg && <QrCard svg={qrSvg} code={equipment.qr_code!} name={equipment.name} internalCode={equipment.internal_code} />}
+          <AiInsightsCard equipmentId={equipment.id} />
+        </div>
       </div>
     </div>
   );

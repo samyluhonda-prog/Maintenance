@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { evaluateAutomations } from "@/lib/automations/evaluate";
 import { createClient } from "@/lib/supabase/server";
 import { reviewRequestSchema, requestSchema } from "@/lib/validation/requests";
 
@@ -48,6 +49,12 @@ export async function createRequestAction(
     .single();
 
   if (error) return { error: toActionError(error) };
+
+  if (input.submit && input.urgency === "critical") {
+    // Fire-and-forget: a notification failure must never block the user's
+    // request submission from succeeding.
+    void evaluateAutomations(orgId, "request.critical_created", { requestId: data.id, title: input.title }).catch(() => {});
+  }
 
   revalidatePath(`/o/${orgSlug}/requests`);
   return { data: { id: data.id } };

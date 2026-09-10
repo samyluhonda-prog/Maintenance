@@ -43,6 +43,7 @@ export function WorkOrderForm({
   equipmentOptions,
   memberOptions,
   defaultEquipmentId,
+  defaultTitle,
 }: {
   orgSlug: string;
   orgId: string;
@@ -50,6 +51,8 @@ export function WorkOrderForm({
   equipmentOptions: Pick<Tables<"equipment">, "id" | "name">[];
   memberOptions: { userId: string; fullName: string }[];
   defaultEquipmentId?: string;
+  /** Prefills the title — used when arriving from a failed procedure run (`?procedureRunId=`). */
+  defaultTitle?: string;
 }) {
   const router = useRouter();
 
@@ -57,7 +60,7 @@ export function WorkOrderForm({
     resolver: zodResolver(workOrderSchema),
     defaultValues: {
       id: workOrder?.id,
-      title: workOrder?.title ?? "",
+      title: workOrder?.title ?? defaultTitle ?? "",
       description: workOrder?.description ?? "",
       type: (workOrder?.type as WorkOrderFormValues["type"]) ?? "corrective",
       priority: (workOrder?.priority as WorkOrderFormValues["priority"]) ?? "medium",

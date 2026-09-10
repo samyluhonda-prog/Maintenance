@@ -22,6 +22,12 @@ function firstFieldError(flatten: { fieldErrors: Record<string, string[] | undef
   return "Formulaire invalide.";
 }
 
+/** Only ever redirect to a same-origin relative path — never follow an absolute/external `next` value. */
+function safeNextPath(next: FormDataEntryValue | null): string | null {
+  if (typeof next !== "string" || !next.startsWith("/") || next.startsWith("//")) return null;
+  return next;
+}
+
 export async function signInAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const parsed = loginSchema.safeParse({
     email: formData.get("email"),
@@ -33,7 +39,7 @@ export async function signInAction(_prev: ActionResult, formData: FormData): Pro
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
   if (error) return { error: "Courriel ou mot de passe invalide." };
 
-  redirect("/onboarding");
+  redirect(safeNextPath(formData.get("next")) ?? "/onboarding");
 }
 
 export async function signUpAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {

@@ -7,8 +7,8 @@ export const metadata: Metadata = { title: "Connexion — Intervia" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ confirmEmail?: string }>;
+  searchParams: Promise<{ confirmEmail?: string; next?: string }>;
 }) {
-  const { confirmEmail } = await searchParams;
-  return <LoginForm confirmEmail={confirmEmail === "1"} />;
+  const { confirmEmail, next } = await searchParams;
+  return <LoginForm confirmEmail={confirmEmail === "1"} next={next} />;
 }

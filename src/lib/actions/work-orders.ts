@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { evaluateAutomations } from "@/lib/automations/evaluate";
 import { createClient } from "@/lib/supabase/server";
 import {
   closeWorkOrderSchema,
@@ -194,6 +195,16 @@ export async function addWorkOrderPartAction(
     note: "Utilisée sur bon de travail",
   });
   if (txError) return { error: toActionError(txError) };
+
+  // part.below_min hook: re-read the running balance the "usage" insert just
+  // decremented (via the app.apply_part_transaction trigger) and fire the
+  // automation event if stock is now under the reorder threshold.
+  // Fire-and-forget: a notification/automation failure must never block the
+  // technician from recording parts used on a work order.
+  const { data: updatedPart } = await supabase.from("parts").select("quantity_on_hand, min_threshold").eq("id", partId).maybeSingle();
+  if (updatedPart && updatedPart.quantity_on_hand < updatedPart.min_threshold) {
+    void evaluateAutomations(orgId, "part.below_min", { partId }).catch(() => {});
+  }
 
   revalidatePath(`/o/${orgSlug}/work-orders/${workOrderId}`);
   return {};

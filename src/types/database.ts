@@ -3233,6 +3233,12 @@ export type Database = {
         }
         Returns: string
       }
+      accept_org_invitation: {
+        Args: {
+          p_token: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

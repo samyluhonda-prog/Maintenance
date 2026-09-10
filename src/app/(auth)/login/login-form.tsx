@@ -11,7 +11,7 @@ import { signInAction, type ActionResult } from "@/lib/auth/actions";
 
 const initialState: ActionResult = {};
 
-export function LoginForm({ confirmEmail }: { confirmEmail: boolean }) {
+export function LoginForm({ confirmEmail, next }: { confirmEmail: boolean; next?: string }) {
   const [state, formAction, pending] = useActionState(signInAction, initialState);
 
   return (
@@ -27,6 +27,7 @@ export function LoginForm({ confirmEmail }: { confirmEmail: boolean }) {
           </p>
         )}
         <form action={formAction} className="grid gap-4">
+          {next && <input type="hidden" name="next" value={next} />}
           <div className="grid gap-2">
             <Label htmlFor="email">Courriel</Label>
             <Input id="email" name="email" type="email" autoComplete="email" required />

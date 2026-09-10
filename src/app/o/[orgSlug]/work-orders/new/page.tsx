@@ -35,6 +35,7 @@ export default async function NewWorkOrderPage({
         equipmentOptions={equipment ?? []}
         memberOptions={memberOptions}
         defaultEquipmentId={typeof sp.equipmentId === "string" ? sp.equipmentId : undefined}
+        defaultTitle={typeof sp.procedureRunId === "string" ? "Suivi — échec d'inspection" : undefined}
       />
     </div>
   );

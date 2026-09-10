@@ -1,7 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Mic, Sparkles, Square } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -12,9 +14,22 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { structureRequestFromTextAction } from "@/lib/actions/ai";
 import { createRequestAction } from "@/lib/actions/requests";
 import { REQUEST_URGENCY, requestSchema, type RequestFormValues } from "@/lib/validation/requests";
 import type { Tables } from "@/types/supabase-helpers";
+
+// Minimal ambient shape for the (non-standard, Chrome/Edge-only) Web Speech
+// API — no @types package ships one, and we only touch a handful of members.
+type SpeechRecognitionLike = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
 
 const URGENCY_LABELS: Record<(typeof REQUEST_URGENCY)[number], string> = {
   low: "Faible",
@@ -35,6 +50,9 @@ export function RequestForm({
   defaultEquipmentId?: string;
 }) {
   const router = useRouter();
+  const [listening, setListening] = useState(false);
+  const [structuring, setStructuring] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   const form = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
@@ -58,6 +76,59 @@ export function RequestForm({
     }
     toast.success(submit ? "Demande soumise." : "Brouillon enregistré.");
     router.push(`/o/${orgSlug}/requests/${result.data!.id}`);
+  }
+
+  function toggleDictation() {
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const Ctor =
+      (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionLike }).SpeechRecognition ??
+      (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionLike }).webkitSpeechRecognition;
+    if (!Ctor) {
+      toast.error("La dictée vocale n’est pas prise en charge par ce navigateur.");
+      return;
+    }
+
+    const recognition = new Ctor();
+    recognition.lang = "fr-CA";
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.onresult = (event) => {
+      let transcript = "";
+      for (let i = 0; i < event.results.length; i++) transcript += event.results[i][0].transcript + " ";
+      form.setValue("description", ((form.getValues("description") as string) + " " + transcript).trim());
+    };
+    recognition.onend = () => setListening(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
+  }
+
+  async function structureWithAi() {
+    const description = form.getValues("description") as string;
+    if (!description?.trim()) {
+      toast.error("Dictez ou saisissez d’abord une description.");
+      return;
+    }
+    setStructuring(true);
+    const result = await structureRequestFromTextAction(orgId, description);
+    setStructuring(false);
+    if (!result.available) {
+      toast.error(result.reason);
+      return;
+    }
+    form.setValue("title", result.title);
+    form.setValue("description", result.description);
+    form.setValue("urgency", result.urgency);
+    form.setValue("isEquipmentDown", result.isEquipmentDown);
+    if (result.matchedEquipmentName) {
+      const match = equipmentOptions.find((e) => e.name === result.matchedEquipmentName);
+      if (match) form.setValue("equipmentId", match.id);
+    }
+    toast.success("Demande structurée par l’IA — vérifiez les champs avant d’envoyer.");
   }
 
   return (
@@ -86,7 +157,24 @@ export function RequestForm({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description du problème</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Description du problème</FormLabel>
+                    <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        variant={listening ? "destructive" : "ghost"}
+                        size="sm"
+                        onClick={toggleDictation}
+                      >
+                        {listening ? <Square className="size-3.5" /> : <Mic className="size-3.5" />}
+                        {listening ? "Arrêter" : "Dicter"}
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={structureWithAi} disabled={structuring}>
+                        <Sparkles className="size-3.5" />
+                        {structuring ? "Analyse…" : "Structurer avec l’IA"}
+                      </Button>
+                    </div>
+                  </div>
                   <FormControl>
                     <Textarea {...field} rows={4} />
                   </FormControl>

@@ -1,0 +1,59 @@
+import { notFound } from "next/navigation";
+
+import { requireOrgAccess } from "@/lib/data/orgs";
+import { createClient } from "@/lib/supabase/server";
+
+import { PmPlanForm } from "../../pm-plan-form";
+import { PmTriggersPanel } from "../../pm-triggers-panel";
+
+export default async function EditPmPlanPage({ params }: PageProps<"/o/[orgSlug]/pm-plans/[id]/edit">) {
+  const { orgSlug, id } = await params;
+  const ctx = await requireOrgAccess(orgSlug);
+  const supabase = await createClient();
+
+  const [{ data: plan }, { data: equipment }, { data: procedureTemplates }, { data: memberships }] = await Promise.all([
+    supabase.from("pm_plans").select("*, pm_triggers(*, meters(name, unit))").eq("id", id).eq("org_id", ctx.org.id).maybeSingle(),
+    supabase.from("equipment").select("id, name").eq("org_id", ctx.org.id).order("name"),
+    supabase
+      .from("procedure_templates")
+      .select("id, name")
+      .eq("org_id", ctx.org.id)
+      .eq("is_active", true)
+      .order("name"),
+    supabase.from("memberships").select("user_id, profiles(full_name)").eq("org_id", ctx.org.id).eq("status", "active"),
+  ]);
+
+  if (!plan) notFound();
+
+  const { data: planMeters } = await supabase.from("meters").select("*").eq("equipment_id", plan.equipment_id).order("name");
+
+  const memberOptions = (memberships ?? []).map((m) => ({
+    userId: m.user_id,
+    fullName: m.profiles?.full_name || "Utilisateur",
+  }));
+  const canEdit = ctx.roleKey === "owner" || ctx.roleKey === "admin" || ctx.permissions.has("pm_plans.edit");
+
+  return (
+    <div className="mx-auto max-w-3xl p-4 sm:p-6">
+      <h1 className="mb-6 text-2xl font-semibold tracking-tight">Modifier « {plan.name} »</h1>
+      <div className="grid gap-6">
+        <PmPlanForm
+          orgSlug={orgSlug}
+          orgId={ctx.org.id}
+          plan={plan}
+          equipmentOptions={equipment ?? []}
+          procedureTemplateOptions={procedureTemplates ?? []}
+          memberOptions={memberOptions}
+        />
+        <PmTriggersPanel
+          orgSlug={orgSlug}
+          orgId={ctx.org.id}
+          pmPlanId={plan.id}
+          triggers={plan.pm_triggers ?? []}
+          meters={planMeters ?? []}
+          canEdit={canEdit}
+        />
+      </div>
+    </div>
+  );
+}
