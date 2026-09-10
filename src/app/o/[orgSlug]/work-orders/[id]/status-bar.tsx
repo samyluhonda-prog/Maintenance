@@ -17,6 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { closeWorkOrderAction, updateWorkOrderStatusAction } from "@/lib/actions/work-orders";
 import { WORK_ORDER_STATUSES } from "@/lib/validation/work-orders";
+import { useOnlineStatus } from "@/lib/offline/use-online-status";
+import { enqueueAction } from "@/lib/offline/queue";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Brouillon",
@@ -51,31 +53,55 @@ export function StatusBar({
   const [resolution, setResolution] = useState("");
   const [followUp, setFollowUp] = useState(false);
   const [followUpNotes, setFollowUpNotes] = useState("");
+  const [localStatus, setLocalStatus] = useState(status);
   const router = useRouter();
+  const online = useOnlineStatus();
 
   function changeStatus(next: string) {
     if (next === "closed") {
       setCloseOpen(true);
       return;
     }
+    const nextStatus = next as (typeof WORK_ORDER_STATUSES)[number];
+
+    if (!online) {
+      setLocalStatus(nextStatus);
+      startTransition(async () => {
+        await enqueueAction({ type: "wo-status-change", orgSlug, workOrderId, payload: { status: nextStatus } });
+        toast.info("Enregistré hors ligne — sera synchronisé automatiquement.");
+      });
+      return;
+    }
+
     startTransition(async () => {
-      const result = await updateWorkOrderStatusAction(orgSlug, workOrderId, next as (typeof WORK_ORDER_STATUSES)[number]);
+      const result = await updateWorkOrderStatusAction(orgSlug, workOrderId, nextStatus);
       if (result.error) toast.error(result.error);
-      else router.refresh();
+      else {
+        setLocalStatus(nextStatus);
+        router.refresh();
+      }
     });
   }
 
   function confirmClose() {
-    startTransition(async () => {
-      const result = await closeWorkOrderAction(orgSlug, workOrderId, {
-        failureCause,
-        resolution,
-        followUpRequired: followUp,
-        followUpNotes,
+    const payload = { failureCause, resolution, followUpRequired: followUp, followUpNotes };
+
+    if (!online) {
+      startTransition(async () => {
+        await enqueueAction({ type: "wo-close", orgSlug, workOrderId, payload });
+        setLocalStatus("closed");
+        toast.info("Clôture enregistrée hors ligne — sera synchronisée automatiquement.");
+        setCloseOpen(false);
       });
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await closeWorkOrderAction(orgSlug, workOrderId, payload);
       if (result.error) toast.error(result.error);
       else {
         toast.success("Bon de travail clôturé.");
+        setLocalStatus("closed");
         setCloseOpen(false);
         router.refresh();
       }
@@ -86,7 +112,7 @@ export function StatusBar({
 
   return (
     <div className="flex items-center gap-2">
-      <Select value={status} onValueChange={changeStatus} disabled={pending}>
+      <Select value={localStatus} onValueChange={changeStatus} disabled={pending}>
         <SelectTrigger className="w-48">
           <SelectValue />
         </SelectTrigger>

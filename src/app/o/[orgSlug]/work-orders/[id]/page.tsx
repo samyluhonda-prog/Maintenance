@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CacheWorkOrderSnapshot } from "@/components/offline/cache-work-order-snapshot";
 import { requireOrgAccess } from "@/lib/data/orgs";
 import { createClient } from "@/lib/supabase/server";
 
@@ -77,6 +78,14 @@ export default async function WorkOrderDetailPage({ params }: PageProps<"/o/[org
 
   return (
     <div className="mx-auto max-w-4xl p-4 sm:p-6">
+      <CacheWorkOrderSnapshot
+        orgSlug={orgSlug}
+        id={workOrder.id}
+        number={workOrder.number}
+        title={workOrder.title}
+        status={workOrder.status}
+        tasks={(tasks ?? []).map((t) => ({ id: t.id, label: t.label, is_done: t.is_done }))}
+      />
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">

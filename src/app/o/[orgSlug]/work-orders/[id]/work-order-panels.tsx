@@ -18,6 +18,8 @@ import {
   toggleWorkOrderTaskAction,
   uploadWorkOrderAttachmentAction,
 } from "@/lib/actions/work-orders";
+import { useOnlineStatus } from "@/lib/offline/use-online-status";
+import { enqueueAction } from "@/lib/offline/queue";
 import type { Tables } from "@/types/supabase-helpers";
 
 export function TasksPanel({
@@ -33,7 +35,9 @@ export function TasksPanel({
 }) {
   const [label, setLabel] = useState("");
   const [pending, startTransition] = useTransition();
+  const [localDone, setLocalDone] = useState<Record<string, boolean>>({});
   const router = useRouter();
+  const online = useOnlineStatus();
 
   function addTask() {
     startTransition(async () => {
@@ -46,22 +50,31 @@ export function TasksPanel({
     });
   }
 
+  function toggleTask(taskId: string, checked: boolean) {
+    setLocalDone((prev) => ({ ...prev, [taskId]: checked }));
+    startTransition(async () => {
+      if (!online) {
+        await enqueueAction({ type: "wo-task-toggle", orgSlug, workOrderId, payload: { taskId, isDone: checked } });
+        toast.info("Enregistré hors ligne — sera synchronisé automatiquement.");
+        return;
+      }
+      const result = await toggleWorkOrderTaskAction(orgSlug, taskId, checked);
+      if (result.error) toast.error(result.error);
+      router.refresh();
+    });
+  }
+
   return (
     <div className="grid gap-3">
-      {tasks.map((task) => (
-        <label key={task.id} className="flex items-center gap-2 text-sm">
-          <Checkbox
-            checked={task.is_done}
-            onCheckedChange={(checked) =>
-              startTransition(async () => {
-                await toggleWorkOrderTaskAction(orgSlug, task.id, !!checked);
-                router.refresh();
-              })
-            }
-          />
-          <span className={task.is_done ? "text-muted-foreground line-through" : ""}>{task.label}</span>
-        </label>
-      ))}
+      {tasks.map((task) => {
+        const isDone = localDone[task.id] ?? task.is_done;
+        return (
+          <label key={task.id} className="flex items-center gap-2 text-sm">
+            <Checkbox checked={isDone} onCheckedChange={(checked) => toggleTask(task.id, !!checked)} />
+            <span className={isDone ? "text-muted-foreground line-through" : ""}>{task.label}</span>
+          </label>
+        );
+      })}
       <div className="flex gap-2">
         <Input
           value={label}
@@ -164,8 +177,23 @@ export function TimePanel({
   const [endedAt, setEndedAt] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const online = useOnlineStatus();
 
   function submit() {
+    if (!online) {
+      startTransition(async () => {
+        await enqueueAction({
+          type: "wo-time-log",
+          orgSlug,
+          workOrderId,
+          payload: { orgId, startedAt, endedAt, note: "" },
+        });
+        toast.info("Heures enregistrées hors ligne — seront synchronisées automatiquement.");
+        setStartedAt("");
+        setEndedAt("");
+      });
+      return;
+    }
     startTransition(async () => {
       const result = await addTimeLogAction(orgSlug, orgId, workOrderId, { startedAt, endedAt, note: "" });
       if (result.error) toast.error(result.error);
@@ -219,8 +247,17 @@ export function CommentsPanel({
   const [body, setBody] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const online = useOnlineStatus();
 
   function submit() {
+    if (!online) {
+      startTransition(async () => {
+        await enqueueAction({ type: "wo-comment", orgSlug, workOrderId, payload: { orgId, body } });
+        toast.info("Commentaire enregistré hors ligne — sera synchronisé automatiquement.");
+        setBody("");
+      });
+      return;
+    }
     startTransition(async () => {
       const result = await addWorkOrderCommentAction(orgSlug, orgId, workOrderId, body);
       if (result.error) toast.error(result.error);

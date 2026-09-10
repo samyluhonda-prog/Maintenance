@@ -4,6 +4,7 @@ import { OrgProvider } from "@/lib/org-context";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppTopbar } from "@/components/layout/app-topbar";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { SyncIndicator } from "@/components/offline/sync-indicator";
 
 export default async function OrgLayout({
   children,
@@ -43,6 +44,7 @@ export default async function OrgLayout({
         <AppSidebar />
         <div className="flex min-w-0 flex-1 flex-col">
           <AppTopbar orgOptions={orgOptions} />
+          <SyncIndicator />
           <main className="flex-1 overflow-x-hidden pb-20 md:pb-0">{children}</main>
         </div>
         <MobileBottomNav />

@@ -276,6 +276,15 @@ export async function addWorkOrderCommentAction(
 }
 
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+const ALLOWED_MIME = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "application/pdf",
+  "video/mp4",
+  "video/quicktime",
+]);
 
 export async function uploadWorkOrderAttachmentAction(
   orgSlug: string,
@@ -286,6 +295,7 @@ export async function uploadWorkOrderAttachmentAction(
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return { error: "Aucun fichier sélectionné." };
   if (file.size > MAX_UPLOAD_BYTES) return { error: "Le fichier dépasse la taille maximale de 15 Mo." };
+  if (!ALLOWED_MIME.has(file.type)) return { error: "Type de fichier non autorisé." };
 
   const supabase = await createClient();
   const {

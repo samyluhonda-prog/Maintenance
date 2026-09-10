@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
 import { Toaster } from "@/components/ui/sonner";
+import { SwRegister } from "@/components/pwa/sw-register";
 
 import "./globals.css";
 
@@ -52,6 +53,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <NextIntlClientProvider messages={messages}>
           {children}
           <Toaster />
+          <SwRegister />
         </NextIntlClientProvider>
       </body>
     </html>
